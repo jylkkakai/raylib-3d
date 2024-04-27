@@ -1,6 +1,7 @@
 #include <cmath>
 #include <iostream>
 #include <raylib.h>
+#include <string>
 
 Vector4 normQ(Vector4 q) {
 
@@ -9,7 +10,23 @@ Vector4 normQ(Vector4 q) {
   return Vector4({q.x / d, q.y / d, q.z / d, q.w / d});
 }
 
+Vector3 normV3(Vector3 q) {
+
+  float d = std::sqrt(std::pow(q.x, 2) + std::pow(q.y, 2) + std::pow(q.z, 2));
+  return Vector3({q.x / d, q.y / d, q.z / d});
+}
 Vector4 invQ(Vector4 q) { return Vector4({-q.x, -q.y, -q.z, q.w}); }
+bool isEqual(Vector2 a, Vector2 b) { return a.x == b.x && a.y == b.y; }
+Vector3 mulScalar(Vector3 q, float s) {
+  return Vector3({q.x * s, q.y * s, q.z * s});
+}
+Vector2 subV2(Vector2 a, Vector2 b) { return Vector2({a.x - b.x, a.y - b.y}); }
+
+Vector3 crossProduct(Vector3 a, Vector3 b) {
+
+  return Vector3(
+      {a.y * b.z - a.z * b.y, a.x * b.z - a.z * b.x, a.x * b.y - a.y * b.x});
+}
 
 Vector4 mulQ(Vector4 a, Vector4 b) {
   return Vector4({a.w * b.x + a.x * b.w - a.y * b.z + a.z * b.y,
@@ -22,8 +39,8 @@ Vector4 toQ(Vector3 r) {
 
   double cr = cos(r.x * 0.5);
   double sr = sin(r.x * 0.5);
-  double cp = cos(0.0175f * 0.5);
-  double sp = sin(0.0175f * 0.5);
+  double cp = cos(r.y * 0.5);
+  double sp = sin(r.y * 0.5);
   double cy = cos(r.z * 0.5);
   double sy = sin(r.z * 0.5);
 
@@ -35,7 +52,7 @@ Vector4 toQ(Vector3 r) {
 
   return q;
 }
-Vector3 rotate(Vector3 r, Vector3 v, float a) {
+Vector3 rotate(Vector3 r, Vector3 v) {
   Vector4 q = toQ(r);
   // Vector4 q = {q.w = std::cos(a / 2), q.x = r.x * std::sin(a / 2),
   //              q.y = r.y * std::sin(a / 2), q.z = r.z * std::sin(a / 2)};
@@ -57,11 +74,8 @@ int main() {
 
   InitWindow(screenWidth, screenHeight, "Test3d");
 
-  Camera camera = {{100.0f, 100.0f, 100.0f},
-                   {0.0f, 0.0f, 0.0f},
-                   {0.0f, 1.0f, 0.0f},
-                   45.0f,
-                   0};
+  Camera camera = {
+      {0, 0.0f, 100.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 45.0f, 0};
   Vector3 boxPos = {20.0f, 0.0f, 0.0f};
   Vector3 boxSize = {10.0f, 10.0f, 10.0f};
   Vector3 sphPos[8];
@@ -76,68 +90,54 @@ int main() {
   }
   SetTargetFPS(60);
 
+  Vector2 center = {float(screenWidth) / 2, float(screenHeight) / 2};
+  Vector2 mousePos;
+  Vector2 prevMousePos;
+  Vector3 ax = {0, 0, 0};
   int wait = 0;
-  // camera.up = Vector3({0, 0, 1});
   while (!WindowShouldClose()) {
 
-    // UpdateCamera(&camera, CAMERA_ORBITAL);
-    // std::cout << camera.position.x << " " << camera.position.y << " "
-    //           << camera.position.x << std::endl;
-    // std::cout << camera.up.x << " " << camera.up.y << " " << camera.up.z
-    //           << std::endl;
-
-    // if (IsKeyDown(KEY_M)) {
-    //   if (camera.projection == 1)
-    //     camera.projection = 0;
-    //   else
-    //     camera.projection = 1;
-    // }
-
+    mousePos = subV2(GetMousePosition(), center);
+    ax = {0, 0, 0};
     if (IsKeyDown(KEY_Q) && !wait) {
-      wait = 5;
-      std::cout << camera.position.x << " " << camera.position.y << " "
-                << camera.position.x << std::endl;
-      camera.up.x += 0.1;
-      UpdateCamera(&camera, CAMERA_ORBITAL);
+      ax.z = -0.0175f;
     }
     if (IsKeyDown(KEY_E) && !wait) {
-      wait = 5;
-      camera.up.x -= 0.1;
-      UpdateCamera(&camera, CAMERA_ORBITAL);
+      ax.z = 0.0175f;
     }
     if (IsKeyDown(KEY_A) && !wait) {
-      wait = 5;
-      camera.up.y -= 0.1;
-      UpdateCamera(&camera, CAMERA_ORBITAL);
+      ax.y = -0.0175f;
     }
     if (IsKeyDown(KEY_D) && !wait) {
-      wait = 5;
-      camera.up.y += 0.1;
-      UpdateCamera(&camera, CAMERA_ORBITAL);
+      ax.y = 0.0175f;
     }
     if (IsKeyDown(KEY_W) && !wait) {
-      wait = 5;
-      std::cout << camera.position.x << " " << camera.position.y << " "
-                << camera.position.x << std::endl;
-      camera.up.z += 0.1;
-      UpdateCamera(&camera, CAMERA_ORBITAL);
+      ax.x = -0.0175f;
     }
     if (IsKeyDown(KEY_S) && !wait) {
-      wait = 5;
-      camera.up.z -= 0.1;
-      UpdateCamera(&camera, CAMERA_ORBITAL);
+      ax.x = 0.0175f;
+    }
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+      if (!isEqual(mousePos, prevMousePos)) {
+        ax = mulScalar(
+            normV3(crossProduct(
+                Vector3({mousePos.x, mousePos.y, camera.position.z}),
+                Vector3({prevMousePos.x, prevMousePos.y, camera.position.z}))),
+            0.03f);
+      }
     }
 
     BeginDrawing();
+    ClearBackground(RAYWHITE);
+    std::string strMousePos = std::to_string(ax.x) + " " +
+                              std::to_string(ax.y) + " " + std::to_string(ax.z);
+    DrawText(strMousePos.c_str(), 20, 20, 20, GRAY);
 
     BeginMode3D(camera);
-    ClearBackground(RAYWHITE);
 
     Color color[8] = {RED, BLUE, GREEN, MAGENTA, YELLOW, BROWN, PURPLE, MAROON};
     for (size_t i = 0; i < 8; i++) {
-      Vector3 ax = {0, 1, 0};
-      // sphPos[i] = rotate(ax, sphPos[i], 0.0175f);
-      sphPos[i] = rotate(ax, sphPos[i], 5.0f);
+      sphPos[i] = rotate(ax, sphPos[i]);
       DrawSphere(sphPos[i], 10, color[i]);
     }
 
@@ -145,6 +145,7 @@ int main() {
     EndDrawing();
     if (wait > 0)
       wait--;
+    prevMousePos = mousePos;
   }
   return 0;
 }
